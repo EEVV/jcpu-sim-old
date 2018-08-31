@@ -1,6 +1,41 @@
 #include "cpu.h"
 
 
+#define MOV 0
+#define NOT 1
+#define OR 2
+#define NOR 3
+#define AND 4
+#define NAND 5
+#define XOR 6
+#define XNOR 7
+#define NEG 8
+#define ADD 9
+#define SUB 10
+
+#define LT 11
+#define NLT 12
+#define SLT 13
+#define NSLT 14
+
+#define SL 15
+#define SR 16
+#define SSL 17
+#define SSR 18
+
+#define REP 19
+#define MUL 20
+#define DIV 21
+
+#define STO8 22
+#define STO16 23
+#define STO32 24
+#define LOD8 25
+#define LOD16 26
+#define LOD32 27
+
+#define DONE 28
+
 typedef struct {
 	uint8_t opcode;
 
@@ -8,23 +43,18 @@ typedef struct {
 	uint8_t ce;
 	// condition invert
 	uint8_t ci;
-	// condition
 	uint8_t cond;
 
-	// 2nd destination
 	uint8_t dest1;
-	// 2nd source
-	uint8_t src1;
-	// 1st destination
 	uint8_t dest0;
-	// 1st source
+	uint8_t src1;
 	uint8_t src0;
 
-	// priority bit for deciding on data races
-	uint8_t p;
+	// writeback to dest1
+	uint8_t w1;
+	// writeback to dest0
+	uint8_t w0;
 
-	// immediate goes to src0, src1
-	uint8_t ib;
 	// immediate goes to src0
 	uint8_t i1;
 	// immediate goes to src1
@@ -40,11 +70,11 @@ Inst cpu_inst(uint32_t inst) {
 	out.ci = (inst >> 24) & 1;
 	out.cond = (inst >> 20) & 0xf;
 	out.dest1 = (inst >> 16) & 0xf;
-	out.src1 = (inst >> 12) & 0xf;
-	out.dest0 = (inst >> 8) & 0xf;
+	out.src0 = (inst >> 12) & 0xf;
+	out.src1 = (inst >> 8) & 0xf;
 	out.src0 = (inst >> 4) & 0xf;
-	out.p = (inst >> 3) & 1;
-	out.ib = (inst >> 2) & 1;
+	out.w1 = (inst >> 3) & 1;
+	out.w0 = (inst >> 2) & 1;
 	out.i1 = (inst >> 1) & 1;
 	out.i0 = inst & 1;
 
@@ -107,19 +137,15 @@ void cpu_run(uint8_t* memory, uint32_t regs[16]) {
 		}
 
 		// outputs
-		uint32_t dest0;
+		uint32_t dest0 = 0;
 		uint32_t dest1 = 0;
 
 		// inputs
-		uint32_t src0 = 0;
-		uint32_t src1 = 0;
+		uint32_t src0 = regs[inst.src0];
+		uint32_t src1 = regs[inst.src1];
 
 		// immediates
-		if (inst.ib) {
-			src0 = cpu_load32(memory, regs[15]);
-			src1 = src0;
-			regs[15] += 1;
-		} else if (inst.i0 || inst.i1) {
+		if (inst.i0 || inst.i1) {
 			if (inst.i0) {
 				src0 = cpu_load32(memory, regs[15]);
 				regs[15] += 1;
@@ -129,67 +155,54 @@ void cpu_run(uint8_t* memory, uint32_t regs[16]) {
 				src1 = cpu_load32(memory, regs[15]);
 				regs[15] += 1;
 			}
-		} else {
-			src0 = regs[inst.src0];
-			src1 = regs[inst.src1];
 		}
 
 		switch (inst.opcode) {
-			// mov
-			case 0b000000:
+			case MOV:
 				dest0 = src0;
 				dest1 = src1;
 				break;
 
-			// not
-			case 0b000001:
+			case NOT:
 				dest0 = ~src0;
 				dest1 = ~src1;
 				break;
 
-			// or
-			case 0b000010:
+			case OR:
 				dest0 = src0 | src1;
 				//dest1 = 0;
 				break;
 
-			// nor
-			case 0b000011:
+			case NOR:
 				dest0 = ~(src0 | src1);
 				//dest1 = 0xffffffff;
 				break;
 
-			// and
-			case 0b000100:
+			case AND:
 				dest0 = src0 & src1;
 				//dest1 = 0;
 				break;
 
-			// nand
-			case 0b000101:
+			case NAND:
 				dest0 = ~(src0 & src1);
 				//dest1 = 0xffffffff;
 				break;
 
-			// xor
-			case 0b000110:
+			case XOR:
 				dest0 = src0 ^ src1;
 				//dest1 = 0;
 				break;
 
-			// xnor
-			case 0b000111:
+			case XNOR:
 				dest0 = ~(src0 ^ src1);
 				//dest1 = 0xffffffff;
 				break;
 
-			// neg
-			case 0b001000:
+			case NEG:
 				dest0 = -src0;
 				//dest1 = 
 
-			// add
-			case 0b001001:
+			case ADD:
 				dest0 = src0 + src1;
 
 				if (src0 > 0xffffffff - src1) {
@@ -199,37 +212,67 @@ void cpu_run(uint8_t* memory, uint32_t regs[16]) {
 				}
 				break;
 
-			// sub
-			case 0b001010:
+			case SUB:
 				dest0 = src0 - src1;
 
 				if (src0 < src1) {
 					dest1 = 0xffffffff;
-				} else {
-					dest1 = 0;
 				}
 				break;
 
-			// lt
-			case 0b001011:
+			case LT:
 				if (src0 < src1) {
 					dest0 = 0xffffffff;
-				} else {
-					dest0 = 0;
 				}
 				break;
 
-			// lte
-			case 0b001100:
-				if (src0 <= src1) {
+			case NLT:
+				if (src0 >= src1) {
 					dest0 = 0xffffffff;
-				} else {
-					dest0 = 0;
 				}
 				break;
 
-			// rep
-			case 0b001101:
+			case SLT:
+				if ((src0 ^ 0x80000000) < (src1 ^ 0x80000000)) {
+					dest0 = 0xffffffff;
+				}
+				break;
+
+			case NSLT:
+				if ((src0 ^ 0x80000000) >= (src1 ^ 0x80000000)) {
+					dest0 = 0xffffffff;
+				}
+				break;
+
+			case SL: {
+				uint64_t dest = ((uint64_t) src0) << ((uint8_t) src1);
+				dest0 = dest;
+				dest1 = dest >> 32;
+				break;
+			}
+
+			case SR: {
+				uint64_t dest = (((uint64_t) src0) << 32) >> ((uint8_t) src1);
+				dest0 = dest;
+				dest1 = dest >> 32;
+				break;
+			}
+
+			case SSL: {
+				uint64_t dest = (*(int64_t*) &src0) << ((uint8_t) src1);
+				dest0 = dest;
+				dest1 = dest >> 32;
+				break;
+			}
+
+			case SSR: {
+				uint64_t dest = ((*(int64_t*) &src0) << 32) >> ((uint8_t) src1);
+				dest0 = dest;
+				dest1 = dest >> 32;
+				break;
+			}
+
+			case REP:
 				if (src0 == 0) {
 					dest0 = 0xffffffff;
 				} else {
@@ -237,61 +280,52 @@ void cpu_run(uint8_t* memory, uint32_t regs[16]) {
 				}
 				break;
 
-			// mul
-			case 0b001110: {
+			case MUL: {
 				uint64_t dest = ((uint64_t) src0) * ((uint64_t) src1);
 				dest0 = dest;
 				dest1 = dest >> 32;
 				break;
 			}
 
-			// div
-			case 0b001111:
+			case DIV:
 				dest0 = src0 % src1;
 				dest1 = src0 / src1;
 				break;
 
-			// sto8
-			case 0b010000:
+			case STO8:
 				dest0 = src0;
 				dest1 = src1;
 				cpu_store8(memory, src0, src1);
 				break;
 
-			// sto16
-			case 0b010001:
+			case STO16:
 				dest0 = src0;
 				dest1 = src1;
 				cpu_store16(memory, src0, src1);
 				break;
 
-			// sto32
-			case 0b010010:
+			case STO32:
 				dest0 = src0;
 				dest1 = src1;
 				cpu_store32(memory, src0, src1);
 				break;
 
-			// lod8
-			case 0b010011:
+			case LOD8:
 				dest0 = cpu_load8(memory, src0);
 				dest1 = src1;
 				break;
 
-			// lod16
-			case 0b010100:
+			case LOD16:
 				dest0 = cpu_load16(memory, src0);
 				dest1 = src1;
 				break;
 
-			// lod32
-			case 0b010101:
+			case LOD32:
 				dest0 = cpu_load32(memory, src0);
 				dest1 = src1;
 				break;
 
-			// hlt
-			case 0b010110:
+			case DONE:
 				return;
 
 			default:
@@ -299,17 +333,15 @@ void cpu_run(uint8_t* memory, uint32_t regs[16]) {
 				return;
 		}
 
-		// if there is a data race
-		if (inst.dest0 == inst.dest1) {
-			// priority bit for data race
-			if (inst.p) {
-				regs[inst.dest1] = dest1;
-			} else {
+		// if there is no data race and atleast one writeback is enabled
+		if ((inst.w0 || inst.w1) && (inst.dest0 != inst.dest1)) {
+			if (inst.w0) {
 				regs[inst.dest0] = dest0;
 			}
-		} else {
-			regs[inst.dest0] = dest0;
-			regs[inst.dest1] = dest1;
+
+			if (inst.w1) {
+				regs[inst.dest1] = dest1;
+			}
 		}
 	}
 }

@@ -16,6 +16,8 @@ uint8_t memory[MEMORY_SIZE << 2] = {0};
 uint32_t regs[16] = {0};
 
 void print_regs(void) {
+	puts("reg:");
+
 	int i = 0;
 	while (i < 16) {
 		printf("%02x %02x %02x %02x\n", regs[i] >> 24, (regs[i] >> 16) & 0xff, (regs[i] >> 8) & 0xff, regs[i] & 0xff);
@@ -25,6 +27,8 @@ void print_regs(void) {
 }
 
 void print_memory(void) {
+	puts("mem:");
+
 	int i = 0;
 	while (i < memory_bytes) {
 		if ((i+1) % 4) {
@@ -60,7 +64,7 @@ int main(int argc, char* argv[]) {
 	size_t len = ftell(file);
 	rewind(file);
 
-	if (len > MEMORY_SIZE) {
+	if (len > memory_bytes) {
 		fputs("file too big\n", stderr);
 
 		return -1;
@@ -71,10 +75,8 @@ int main(int argc, char* argv[]) {
 
 	cpu_run(memory, regs);
 
-	puts("reg:");
 	print_regs();
 	puts("");
-	puts("mem:");
 	print_memory();
 
 	return 0;

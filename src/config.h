@@ -1,4 +1,4 @@
 /*
-memory size (in word)
+memory size (in words)
 */
 #define MEMORY_SIZE 8
