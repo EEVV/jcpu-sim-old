@@ -1,3 +1,4 @@
+#include "config.h"
 #include "cpu.h"
 
 
@@ -55,9 +56,9 @@ typedef struct {
 	// writeback to dest0
 	uint8_t w0;
 
-	// immediate goes to src0
+	// immediate for src1
 	uint8_t i1;
-	// immediate goes to src1
+	// immediate for src0
 	uint8_t i0;
 } Inst;
 
@@ -70,7 +71,7 @@ Inst cpu_inst(uint32_t inst) {
 	out.ci = (inst >> 24) & 1;
 	out.cond = (inst >> 20) & 0xf;
 	out.dest1 = (inst >> 16) & 0xf;
-	out.src0 = (inst >> 12) & 0xf;
+	out.dest0 = (inst >> 12) & 0xf;
 	out.src1 = (inst >> 8) & 0xf;
 	out.src0 = (inst >> 4) & 0xf;
 	out.w1 = (inst >> 3) & 1;
@@ -119,6 +120,13 @@ uint32_t cpu_load32(uint8_t* memory, uint32_t in_addr) {
 
 void cpu_run(uint8_t* memory, uint32_t regs[16]) {
 	while (1) {
+		// if program counter is outside of
+		// memory
+		// return so no segfault
+		if (regs[15] >= MEMORY_SIZE) {
+			return;
+		}
+
 		Inst inst = cpu_inst(cpu_load32(memory, regs[15]));
 
 		regs[15] += 1;
@@ -145,16 +153,14 @@ void cpu_run(uint8_t* memory, uint32_t regs[16]) {
 		uint32_t src1 = regs[inst.src1];
 
 		// immediates
-		if (inst.i0 || inst.i1) {
-			if (inst.i0) {
-				src0 = cpu_load32(memory, regs[15]);
-				regs[15] += 1;
-			}
+		if (inst.i0) {
+			src0 = cpu_load32(memory, regs[15]);
+			regs[15] += 1;
+		}
 
-			if (inst.i1) {
-				src1 = cpu_load32(memory, regs[15]);
-				regs[15] += 1;
-			}
+		if (inst.i1) {
+			src1 = cpu_load32(memory, regs[15]);
+			regs[15] += 1;
 		}
 
 		switch (inst.opcode) {
@@ -201,6 +207,7 @@ void cpu_run(uint8_t* memory, uint32_t regs[16]) {
 			case NEG:
 				dest0 = -src0;
 				//dest1 = 
+				break;
 
 			case ADD:
 				dest0 = src0 + src1;
@@ -333,15 +340,12 @@ void cpu_run(uint8_t* memory, uint32_t regs[16]) {
 				return;
 		}
 
-		// if there is no data race and atleast one writeback is enabled
-		if ((inst.w0 || inst.w1) && (inst.dest0 != inst.dest1)) {
-			if (inst.w0) {
-				regs[inst.dest0] = dest0;
-			}
+		if (inst.w0) {
+			regs[inst.dest0] = dest0;
+		}
 
-			if (inst.w1) {
-				regs[inst.dest1] = dest1;
-			}
+		if (inst.w1) {
+			regs[inst.dest1] = dest1;
 		}
 	}
 }
