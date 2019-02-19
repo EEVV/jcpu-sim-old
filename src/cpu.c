@@ -134,7 +134,7 @@ void cpu_run(uint8_t* memory, uint32_t regs[16]) {
 		// condition check
 		if (inst.ce) {
 			if (inst.ci) {
-				if (regs[inst.cond] > 0) {
+				if (regs[inst.cond] != 0) {
 					continue;
 				}
 			} else {
@@ -210,7 +210,7 @@ void cpu_run(uint8_t* memory, uint32_t regs[16]) {
 				break;
 
 			case ADD:
-				dest0 = src0 + src1;
+				dest0 = src1 + src0;
 
 				if (src0 > 0xffffffff - src1) {
 					dest1 = 1;
