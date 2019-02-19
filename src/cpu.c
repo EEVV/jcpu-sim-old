@@ -175,32 +175,32 @@ void cpu_run(uint8_t* memory, uint32_t regs[16]) {
 				break;
 
 			case OR:
-				dest0 = src0 | src1;
+				dest0 = src1 | src0;
 				//dest1 = 0;
 				break;
 
 			case NOR:
-				dest0 = ~(src0 | src1);
+				dest0 = ~(src1 | src0);
 				//dest1 = 0xffffffff;
 				break;
 
 			case AND:
-				dest0 = src0 & src1;
+				dest0 = src1 & src0;
 				//dest1 = 0;
 				break;
 
 			case NAND:
-				dest0 = ~(src0 & src1);
+				dest0 = ~(src1 & src0);
 				//dest1 = 0xffffffff;
 				break;
 
 			case XOR:
-				dest0 = src0 ^ src1;
+				dest0 = src1 ^ src0;
 				//dest1 = 0;
 				break;
 
 			case XNOR:
-				dest0 = ~(src0 ^ src1);
+				dest0 = ~(src1 ^ src0);
 				//dest1 = 0xffffffff;
 				break;
 
@@ -220,60 +220,60 @@ void cpu_run(uint8_t* memory, uint32_t regs[16]) {
 				break;
 
 			case SUB:
-				dest0 = src0 - src1;
+				dest0 = src1 - src0;
 
-				if (src0 < src1) {
+				if (src1 < src0) {
 					dest1 = 0xffffffff;
 				}
 				break;
 
 			case LT:
-				if (src0 < src1) {
+				if (src1 < src0) {
 					dest0 = 0xffffffff;
 				}
 				break;
 
 			case NLT:
-				if (src0 >= src1) {
+				if (src1 >= src0) {
 					dest0 = 0xffffffff;
 				}
 				break;
 
 			case SLT:
-				if ((src0 ^ 0x80000000) < (src1 ^ 0x80000000)) {
+				if ((src1 ^ 0x80000000) < (src0 ^ 0x80000000)) {
 					dest0 = 0xffffffff;
 				}
 				break;
 
 			case NSLT:
-				if ((src0 ^ 0x80000000) >= (src1 ^ 0x80000000)) {
+				if ((src1 ^ 0x80000000) >= (src0 ^ 0x80000000)) {
 					dest0 = 0xffffffff;
 				}
 				break;
 
 			case SL: {
-				uint64_t dest = ((uint64_t) src0) << ((uint8_t) src1);
+				uint64_t dest = ((uint64_t) src1) << ((uint8_t) src0);
 				dest0 = dest;
 				dest1 = dest >> 32;
 				break;
 			}
 
 			case SR: {
-				uint64_t dest = (((uint64_t) src0) << 32) >> ((uint8_t) src1);
+				uint64_t dest = (((uint64_t) src1) << 32) >> ((uint8_t) src0);
 				dest0 = dest;
 				dest1 = dest >> 32;
 				break;
 			}
 
 			case SSL: {
-				uint64_t dest = (*(int64_t*) &src0) << ((uint8_t) src1);
+				uint64_t dest = (*(int64_t*) &src1) << ((uint8_t) src0);
 				dest0 = dest;
 				dest1 = dest >> 32;
 				break;
 			}
 
 			case SSR: {
-				uint64_t dest = ((*(int64_t*) &src0) << 32) >> ((uint8_t) src1);
+				uint64_t dest = ((*(int64_t*) &src1) << 32) >> ((uint8_t) src0);
 				dest0 = dest;
 				dest1 = dest >> 32;
 				break;
@@ -288,33 +288,33 @@ void cpu_run(uint8_t* memory, uint32_t regs[16]) {
 				break;
 
 			case MUL: {
-				uint64_t dest = ((uint64_t) src0) * ((uint64_t) src1);
+				uint64_t dest = ((uint64_t) src1) * ((uint64_t) src0);
 				dest0 = dest;
 				dest1 = dest >> 32;
 				break;
 			}
 
 			case DIV:
-				dest0 = src0 % src1;
-				dest1 = src0 / src1;
+				dest0 = src1 % src0;
+				dest1 = src1 / src0;
 				break;
 
 			case STO8:
 				dest0 = src0;
 				dest1 = src1;
-				cpu_store8(memory, src0, src1);
+				cpu_store8(memory, src1, src0);
 				break;
 
 			case STO16:
 				dest0 = src0;
 				dest1 = src1;
-				cpu_store16(memory, src0, src1);
+				cpu_store16(memory, src1, src0);
 				break;
 
 			case STO32:
 				dest0 = src0;
 				dest1 = src1;
-				cpu_store32(memory, src0, src1);
+				cpu_store32(memory, src1, src0);
 				break;
 
 			case LOD8:
